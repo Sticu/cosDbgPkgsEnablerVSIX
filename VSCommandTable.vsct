@@ -1,0 +1,37 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<CommandTable xmlns="http://schemas.microsoft.com/VisualStudio/2005-10-18/CommandTable" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <Extern href="stdidcmd.h"/>
+  <Extern href="vsshlids.h"/>
+  <Include href="KnownImageIds.vsct"/>
+  <Include href="VSGlobals.vsct"/>
+
+  <Commands package="DbgPkgEnabler">
+    <Groups>
+      <Group guid="DbgPkgEnabler" id="DbgPkgEnablerMenuGroup" priority="0x0101">
+        <Parent guid="guidSHLMainMenu" id="IDM_VS_CTXT_PROJNODE"/>
+      </Group>
+    </Groups>
+
+    <!--This section defines the elements the user can interact with, like a menu command or a button
+        or combo box in a toolbar. -->
+    <Buttons>
+      <Button guid="DbgPkgEnabler" id="EnableDbgPkgsCommand" priority="0x0100" type="Button">
+        <Parent guid="DbgPkgEnabler" id="DbgPkgEnablerMenuGroup" />
+		  <Icon guid="ImageCatalogGuid" id="CSPackage" /> <!-- Use an existing icon from https://glyphlist.azurewebsites.net/knownmonikers/ -->
+        <CommandFlag>IconIsMoniker</CommandFlag>
+        <Strings>
+          <ButtonText>---Enable pkg debugifier---</ButtonText>
+          <LocCanonicalName>.DbgPkgEnabler.EnableDbgPkgsCommand</LocCanonicalName>
+        </Strings>
+      </Button>
+    </Buttons>
+  </Commands>
+
+  <Symbols>
+    <GuidSymbol name="DbgPkgEnabler" value="{e2ae0d0a-d76f-4b85-a44b-163a7d51a22e}">
+      <IDSymbol name="DbgPkgEnablerMenuGroup" value="0x0001" />
+      <IDSymbol name="EnableDbgPkgsCommand" value="0x0100" />
+    </GuidSymbol>
+  </Symbols>
+</CommandTable>
