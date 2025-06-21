@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
   <Metadata>
-    <Identity Id="DbgPkgEnabler.e2c91054-5cb7-4668-b161-02fc5bfb59a4" Version="1.0" Language="en-US" Publisher="Catalin Siicu csiicu" />
-    <DisplayName>DbgPkgEnabler</DisplayName>
+    <Identity Id="DbgPkgsEnabler.e2c91054-5cb7-4668-b161-02fc5bfb59a4" Version="1.0" Language="en-US" Publisher="Catalin Siicu csiicu" />
+    <DisplayName>DbgPkgsEnabler</DisplayName>
     <Description>Empty VSIX Project.</Description>
     <Icon>Resources\Icon.png</Icon>
     <PreviewImage>Resources\Icon.png</PreviewImage>

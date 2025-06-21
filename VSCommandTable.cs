@@ -5,22 +5,22 @@
 // ------------------------------------------------------------------------------
 using System;
 
-namespace DbgPkgEnabler
+namespace DbgPkgsEnabler
 {
     /// <summary>
     /// Helper class that exposes all GUIDs used across VS Package.
     /// </summary>
     internal sealed partial class PackageGuids
     {
-        public const string DbgPkgEnablerString = "e2ae0d0a-d76f-4b85-a44b-163a7d51a22e";
-        public static Guid DbgPkgEnabler = new Guid(DbgPkgEnablerString);
+        public const string DbgPkgsEnablerString = "e2ae0d0a-d76f-4b85-a44b-163a7d51a22e";
+        public static Guid DbgPkgsEnabler = new Guid(DbgPkgsEnablerString);
     }
     /// <summary>
     /// Helper class that encapsulates all CommandIDs uses across VS Package.
     /// </summary>
     internal sealed partial class PackageIds
     {
-        public const int DbgPkgEnablerMenuGroup = 0x0001;
+        public const int DbgPkgsEnablerMenuGroup = 0x0001;
         public const int EnableDbgPkgsCommand = 0x0100;
     }
 }

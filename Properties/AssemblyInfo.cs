@@ -1,4 +1,4 @@
-﻿using DbgPkgEnabler;
+﻿using DbgPkgsEnabler;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
