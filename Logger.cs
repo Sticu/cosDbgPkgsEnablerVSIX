@@ -48,37 +48,5 @@ namespace DbgPkgEnabler
         {
             _logger.TraceEvent(TraceEventType.Information, id, message);
         }
-
-
-        private static readonly object _lock = new object();
-        private static bool _isInitialized = false;
-        private static FileTraceListener? _fileTraceListener;
-        public static void Initialize(string logFilePath)
-        {
-            if (_isInitialized) return;
-            lock (_lock)
-            {
-                if (!_isInitialized)
-                {
-                    _fileTraceListener = new FileTraceListener(logFilePath);
-                    //Trace.Listeners.Add(_fileTraceListener);
-                    _isInitialized = true;
-                }
-            }
-        }
-        public static void Log(string message)
-        {
-            if (!_isInitialized) throw new InvalidOperationException("Logger not initialized. Call Initialize() first.");
-            //Trace.WriteLine(message);
-        }
-        public static void Dispose()
-        {
-            if (_fileTraceListener != null)
-            {
-                //Trace.Listeners.Remove(_fileTraceListener);
-                _fileTraceListener.Dispose();
-                _fileTraceListener = null;
-            }
-        }
     }
 }

@@ -20,14 +20,17 @@ namespace DbgPkgEnabler
         private async Task RunLongRunningActionAsync()
         {
             // (for now) Simulate a long-running operation
-            await Task.Run(() =>
+            for (int i = 0; i <= 100; i += 10)
             {
-                System.Threading.Thread.Sleep(5000);
-            });
+                // (!) Switch to UI thread before updating UI elements
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                ProgressBar.Value = i;
+                ProgressText.Text = $"{i}% completed";
+                // Simulate work
+                await Task.Delay(500);
+            }
 
-            // (!) switch to the UI thread before interacting with UI elements
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-
             // Optionally close the dialog when done
             Button_Click(this, new RoutedEventArgs());
         }
