@@ -8,15 +8,19 @@ namespace DbgPkgEnabler
 {
     public partial class ProgressDlg : DialogWindow
     {
-        public ProgressDlg()
+        private string _scriptPath;
+        private string _csprojName;
+
+        public ProgressDlg(string csprojName)
         {
+            _csprojName = csprojName;
             InitializeComponent();
             Loaded += ProgressDlg_Loaded;
         }
 
         private async void ProgressDlg_Loaded(object sender, RoutedEventArgs e)
         {
-            ExtractResourceToTempFile("DbgPkgEnabler.Resources.mkDBGpkgs.ps1");
+            _scriptPath = ExtractResourceToTempFile("DbgPkgEnabler.Resources.mkDBGpkgs.ps1");
             // Start the long-running action when the dialog is loaded
             await RunLongRunningActionAsync();
         }
@@ -36,20 +40,23 @@ namespace DbgPkgEnabler
 
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
             // Optionally close the dialog when done
+            //this.Close();
+        }
+
+        private void CloseButton_Click(object sender, RoutedEventArgs e)
+        {
             this.Close();
         }
 
-        private void Button_Click(object sender, RoutedEventArgs e)
+        private void RunButton_Click(object sender, RoutedEventArgs e)
         {
-            //this.Close();
-
-            string psCommand = "ls -Force";
+            //string psCommand = "ls -Force";
 
             var psi = new ProcessStartInfo
             {
                 FileName = "powershell.exe",
                 //Arguments = $"-NoProfile -Command \"{psCommand}\"",
-                Arguments = $"-ExecutionPolicy Bypass -File \"C:\\Users\\csiicu\\source\\repos\\wfLaunch\\script.ps1\" ",
+                Arguments = $"-ExecutionPolicy Bypass -File \"{_scriptPath}\" -csprojfile \"{_csprojName}\" -forceCheckAll",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
@@ -63,33 +70,36 @@ namespace DbgPkgEnabler
                 process.WaitForExit();
 
                 // Do something with the output
-                CmdsExecOutput.Text = output;
+                CmdsExecOutput.Text = !string.IsNullOrWhiteSpace(error) ? error : output;
             }
         }
 
         private string ExtractResourceToTempFile(string resourceName)
         {
             string[] parts = resourceName.Split('.');
-            string fileName = string.Empty;
-            if (parts.Length < 2)
-            {
-                fileName = resourceName;
-            }
-            else
-            {
-                fileName = parts[parts.Length - 2] + "." + parts[parts.Length - 1];
-            }
+            string fileName = (parts.Length < 2)
+                ? fileName = resourceName
+                : fileName = parts[parts.Length - 2] + "." + parts[parts.Length - 1];
             string filePath = Path.Combine(Path.GetTempPath(), fileName);
 
             var assembly = System.Reflection.Assembly.GetExecutingAssembly();
 
             using (Stream resourceStream = assembly.GetManifestResourceStream(resourceName))
-            using (StreamReader reader = new StreamReader(resourceStream))
             {
-                string content = reader.ReadToEnd();
+                if (resourceStream == null)
+                {
+                    return null;
+                }
+
+                using (StreamReader reader = new StreamReader(resourceStream))
+                {
+                    string content = reader.ReadToEnd();
+                    File.WriteAllText(filePath, content);
+                }
             }
 
             return filePath;
         }
+
     }
 }

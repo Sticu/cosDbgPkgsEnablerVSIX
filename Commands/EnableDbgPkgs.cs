@@ -47,17 +47,17 @@ namespace DbgPkgsEnabler
                 //await VS.MessageBox.ShowAsync("DbgPkgsEnabler", $"Active project: {projectName}; Prebuild:\r\n{preBuildEvent}");
                 //-		dialog	{Microsoft.VisualStudio.PlatformUI.DialogWindow}	Microsoft.VisualStudio.PlatformUI.DialogWindow
 
-                var dialog = new ProgressDlg();
+                var dialog = new ProgressDlg(projectName);
                 dialog.HasMinimizeButton = false;
                 dialog.HasMaximizeButton = true;
                 dialog.IsCloseButtonEnabled = false;
                 dialog.Title = "Debug NuGet Packages Enabler";
                 dialog.ShowModal();
 
-                string dropFilePath = Path.Combine(Path.GetDirectoryName(activeProject.FullName), "xscript.kk");
-                File.WriteAllText(dropFilePath, activeProject.FullName);
-                activeProject.ProjectItems.AddFromFile(dropFilePath);
-                activeProject.Save();
+                //string dropFilePath = Path.Combine(Path.GetDirectoryName(activeProject.FullName), "xscript.kk");
+                //File.WriteAllText(dropFilePath, activeProject.FullName);
+                //activeProject.ProjectItems.AddFromFile(dropFilePath);
+                //activeProject.Save();
             }
             else
             {

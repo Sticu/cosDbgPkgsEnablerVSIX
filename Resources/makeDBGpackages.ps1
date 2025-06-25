@@ -1,7 +1,6 @@
 ﻿param (
-      [Parameter(Mandatory=$true)] [string]$csprojfile = "",
-      [switch] $forceCheckAll
-      )
+    [string]$csprojfile = "C:\MLTY\conUseTestNuget\conUseTestNuget.csproj"
+    )
 
 #-------
 #HELPER - Prepend a multiline message with script specific marker (i.e. "[makeDBG]")
@@ -15,18 +14,9 @@ function OutputMessages
     Write-Output $($modifiedOutput)
 }
 
-
 ###################
 # SCRIPT MAIN BODY
 ###################
-if ([string]::IsNullOrWhiteSpace($csprojfile))
-{
-    Write-Error "No .csproj file specified. Please provide a valid csproj file!"
-    exit 1
-}
-
-$CurrentFileName = Split-Path -Path $PSCommandPath -Leaf
-Write-Output "[makeDBG] Running the script: $CurrentFileName"
 
 #---Construct the name of the file that keeps track of the already touched packages 
 $TMP_FILENAME_ROOT = "mkDBGpkg"
@@ -36,6 +26,14 @@ $sanitizedFilename = $csprojfile -replace "[$invalidFilenameChars]", "-"
 $handledPackagesTrackingFile = $env:TEMP + "\$($TMP_FILENAME_ROOT)-$($sanitizedFilename).csv"
 $flagUnhandledPackagesOnly = $FALSE
 
+# ---Check if the package(s) replacement with DEBUG packages is NOT desired
+# The logic is based on how the current script file, present within the project folders in VS(!), is marked for build:
+# - Do no copy: will NOT perform the packages DEBUGification
+# - Copy if newer: will PERFORM the packages DEBUGification
+# - Copy always:   will PERFORM the packages DEBUGification
+$CurrentFileName = Split-Path -Path $PSCommandPath -Leaf
+Write-Output "[makeDBG] Running the script: $CurrentFileName"
+
 Write-Output "[makeDBG] Checking [$handledPackagesTrackingFile] for previously handled packages"
 [array]$previouslyHandledPackages = [PSCustomObject]@()
 if (Test-Path $handledPackagesTrackingFile)
@@ -43,15 +41,34 @@ if (Test-Path $handledPackagesTrackingFile)
     $previouslyHandledPackages = Import-Csv -Path $handledPackagesTrackingFile
     Write-Output "[makeDBG] Previously handled:`n$(OutputMessages($($previouslyHandledPackages | Format-Table | Out-String)))"
 }
+
+# Read the script's 'Copy to Output Directory' setting (if any) as set in the VS project
+[xml]$csproj = Get-Content $csprojfile
+$items = $csproj.Project.ItemGroup.None | Where-Object { $_.Update -eq $CurrentFileName }
+$copySetting = $items.CopyToOutputDirectory
+#when the script is marked as "Do not copy", just bail out (after deleting the temp file keeping track of handled packages)
+if ([string]::IsNullOrWhiteSpace($items) -or ($copySetting -eq "Never"))
+{
+    Write-Output "[makeDBG] DEBUG Patching NOT enforced ('Copy to Output Directory setting'= $copySetting). NO ACTION DONE."
+    if (Test-Path $handledPackagesTrackingFile)
+    {
+        Remove-Item -Path $handledPackagesTrackingFile
+    }
+    exit(0)
+}
+#when the script is marked as "Copy if newer", keep in mind to handle only the previously unhandled packages
+elseif ($copySetting -eq "PreserveNewest")
+{
+    Write-Output "[makeDBG] NOTE: will act on previously unhandled packages ONLY ('Copy to Output Directory setting'= $copySetting)"
+    $flagUnhandledPackagesOnly = $TRUE
+}
 else
 {
-    Write-Output "[makeDBG] No previously handled packages file was found."
+    Write-Output "[makeDBG] NOTE: will handle ALL referenced packages ('Copy to Output Directory setting'= $copySetting)"
 }
 
-if ($forceCheckAll)
-{
-    Write-Output "[makeDBG]: (Will check ALL project packages)"
-}
+#--- Install the Azure Artifacts credential provider. TODO: do this only if it's not alread installed
+Invoke-Expression (Invoke-RestMethod -Uri 'https://aka.ms/install-artifacts-credprovider.ps1')
 
 # ---Retrieve all the referenced NuGet packages and try to replace them with DEBUG version, IF these does exist
 Write-Output "[makeDBG] Parsing project file: [$csprojfile]"
@@ -126,3 +143,5 @@ Write-Output "[makeDBG] (Saving handled packages info to: $handledPackagesTracki
 $handledPackages | Export-Csv -Path $handledPackagesTrackingFile -NoTypeInformation
 
 Write-Output "[makeDBG] DONE!"
+#dotnet restore
+#nuget restore
