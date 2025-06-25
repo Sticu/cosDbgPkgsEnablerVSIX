@@ -8,7 +8,7 @@
                         toolkit:Themes.UseVsTheme="True"
                         mc:Ignorable="d"
                         Height="300"
-                        Width="750"
+                        Width="800"
                         d:DesignHeight="300">
     <Grid Margin="10">
         <Grid.RowDefinitions>

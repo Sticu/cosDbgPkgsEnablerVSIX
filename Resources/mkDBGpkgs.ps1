@@ -41,38 +41,48 @@ Write-Output "[makeDBG] Checking [$handledPackagesTrackingFile] for previously h
 if (Test-Path $handledPackagesTrackingFile)
 {
     $previouslyHandledPackages = Import-Csv -Path $handledPackagesTrackingFile
-    Write-Output "[makeDBG] Previously handled:`n$(OutputMessages($($previouslyHandledPackages | Format-Table | Out-String)))"
+    Write-Output "[makeDBG] Packages previously handled:`n$(OutputMessages($($previouslyHandledPackages | Format-Table | Out-String)))"
 }
 else
 {
-    Write-Output "[makeDBG] No previously handled packages file was found."
+    Write-Output "[makeDBG] (No 'previously handled packages' file was found)."
 }
 
 if ($forceCheckAll)
 {
-    Write-Output "[makeDBG]: (Will check ALL project packages)"
+    Write-Output "[makeDBG] (forceCheckAll specified => will check ALL project packages, including those already handled)"
 }
 
-# ---Retrieve all the referenced NuGet packages and try to replace them with DEBUG version, IF these does exist
+# ---Retrieve all the referenced NuGet packages and try to replace them with DEBUG version, IF these do exist
 Write-Output "[makeDBG] Parsing project file: [$csprojfile]"
 
 [array]$handledPackages = [PSCustomObject]@()
 
 [xml]$csproj = Get-Content $csprojfile
-$referencedPackages = $csproj.Project.ItemGroup.PackageReference
+$referencedPackages = $csproj.Project.ItemGroup.PackageReference | Where-Object { $_ -ne $null }
+Write-Output "[makeDBG] Found reference(s) to:`n$(OutputMessages($($referencedPackages | Format-Table | Out-String)))"
+if ($referencedPackages.Count -eq  0)
+{
+    Write-Output "[makeDBG] No <PackageReference> found, probably not a .Net project; attempting .Net Framework style."
+    $referencedPackages = $csproj.Project.ItemGroup.Reference | Where-Object { $_ -ne $null }
+    if ($referencedPackages.Count -eq  0)
+    {
+        Write-Output "[makeDBG] No <Reference> found, NOTHING TO DO."
+    }
+}
+
 foreach ($package in $referencedPackages)
 {
     $pkgname = $($package.Include)
     $pkgversion = $($package.Version)
     $packageAlreadyHandled = $previouslyHandledPackages | Where-Object {($_.package -eq $pkgname) -and ($_.version -eq $pkgversion)}
 
-    #(occasionally, there are ItemGroups within the .csproj that don't reference packages and comes here as null/empty ->> skip them)
+    # (occasionally, there are ItemGroups within the .csproj that don't reference packages and comes here as null/empty ->> skip them)
     if ([string]::IsNullOrWhiteSpace($pkgname) -or [string]::IsNullOrWhiteSpace($pkgversion))
     {
         Write-Output "[makeDBG] (not a reference itemgroup, skip)"
         continue
     }
-
     Write-Output "[makeDBG] - Found reference to package: [$pkgname / $pkgversion]"
     if ($flagUnhandledPackagesOnly -and $packageAlreadyHandled)
     {
@@ -120,7 +130,7 @@ foreach ($package in $referencedPackages)
 }
 
 Write-Output "[makeDBG] ===================================================================================================="
-Write-Output "[makeDBG] Handled ALL detected packages:`n$(OutputMessages($($handledPackages | Format-Table | Out-String)))"
+Write-Output "[makeDBG] Done handling these packages:`n$(OutputMessages($($handledPackages | Format-Table | Out-String)))"
 
 Write-Output "[makeDBG] (Saving handled packages info to: $handledPackagesTrackingFile)"
 $handledPackages | Export-Csv -Path $handledPackagesTrackingFile -NoTypeInformation

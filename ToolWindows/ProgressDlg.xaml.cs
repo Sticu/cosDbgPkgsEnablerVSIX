@@ -20,7 +20,9 @@ namespace DbgPkgEnabler
 
         private async void ProgressDlg_Loaded(object sender, RoutedEventArgs e)
         {
-            _scriptPath = ExtractResourceToTempFile("DbgPkgEnabler.Resources.mkDBGpkgs.ps1");
+            //The way to refer to the embedded resource: {DefaultNamespace}.{Folder}.{FileName}; please keep updated!
+            _scriptPath = ExtractResourceToTempFile(typeof(ProgressDlg).Namespace + ".Resources.mkDBGpkgs.ps1");
+
             // Start the long-running action when the dialog is loaded
             await RunLongRunningActionAsync();
         }
@@ -72,14 +74,43 @@ namespace DbgPkgEnabler
                 // Do something with the output
                 CmdsExecOutput.Text = !string.IsNullOrWhiteSpace(error) ? error : output;
             }
+
+            //var process = new System.Diagnostics.Process { StartInfo = psi };
+            //process.OutputDataReceived += (sender, e) =>
+            //{
+            //    if (!string.IsNullOrEmpty(e.Data))
+            //    {
+            //        _ = Task.Run(async () =>
+            //        {
+            //            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+            //            CmdsExecOutput.AppendText(e.Data + "\n");
+            //        });
+            //    }
+            //};
+            //process.ErrorDataReceived += (sender, e) =>
+            //{
+            //    if (!string.IsNullOrEmpty(e.Data))
+            //    {
+            //        _ = Task.Run(async () =>
+            //        {
+
+            //            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+            //            CmdsExecOutput.AppendText("ERROR: " + e.Data + "\n");
+            //        });
+            //    }
+            //};
+            //process.Start();
+            //process.BeginOutputReadLine();
+            //process.BeginErrorReadLine();
+            //process.WaitForExit();
         }
 
         private string ExtractResourceToTempFile(string resourceName)
         {
             string[] parts = resourceName.Split('.');
             string fileName = (parts.Length < 2)
-                ? fileName = resourceName
-                : fileName = parts[parts.Length - 2] + "." + parts[parts.Length - 1];
+                                    ? resourceName
+                                    : parts[parts.Length - 2] + "." + parts[parts.Length - 1];
             string filePath = Path.Combine(Path.GetTempPath(), fileName);
 
             var assembly = System.Reflection.Assembly.GetExecutingAssembly();

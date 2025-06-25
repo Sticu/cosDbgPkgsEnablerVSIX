@@ -21,7 +21,7 @@
 		  <Icon guid="ImageCatalogGuid" id="CSPackage" /> <!-- Use an existing icon from https://glyphlist.azurewebsites.net/knownmonikers/ -->
         <CommandFlag>IconIsMoniker</CommandFlag>
         <Strings>
-          <ButtonText>---Enable pkg debugifier---</ButtonText>
+          <ButtonText>---DEBUGify nuget packages---</ButtonText>
           <LocCanonicalName>.DbgPkgsEnabler.EnableDbgPkgsCommand</LocCanonicalName>
         </Strings>
       </Button>
