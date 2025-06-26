@@ -21,12 +21,12 @@ function OutputMessages
 ###################
 if ([string]::IsNullOrWhiteSpace($csprojfile))
 {
-    Write-Error "No .csproj file specified. Please provide a valid csproj file!"
+    Write-Error "ERROR: No .csproj file specified. Please provide a valid csproj file!"
     exit 1
 }
 
 $CurrentFileName = Split-Path -Path $PSCommandPath -Leaf
-Write-Output "[makeDBG] Running the script: $CurrentFileName"
+Write-Output "[makeDBG] (Running the script: $CurrentFileName)"
 
 #---Construct the name of the file that keeps track of the already touched packages 
 $TMP_FILENAME_ROOT = "mkDBGpkg"
@@ -45,29 +45,30 @@ if (Test-Path $handledPackagesTrackingFile)
 }
 else
 {
-    Write-Output "[makeDBG] (No 'previously handled packages' file was found)."
+    Write-Output "[makeDBG] No 'previously handled packages' file was found."
 }
 
 if ($forceCheckAll)
 {
-    Write-Output "[makeDBG] (forceCheckAll specified => will check ALL project packages, including those already handled)"
+    Write-Output "[makeDBG] 'forceCheckAll' flag specified => will check ALL project packages, including those previously handled"
 }
 
 # ---Retrieve all the referenced NuGet packages and try to replace them with DEBUG version, IF these do exist
+Write-Output "[makeDBG]"
 Write-Output "[makeDBG] Parsing project file: [$csprojfile]"
 
 [array]$handledPackages = [PSCustomObject]@()
 
 [xml]$csproj = Get-Content $csprojfile
 $referencedPackages = $csproj.Project.ItemGroup.PackageReference | Where-Object { $_ -ne $null }
-Write-Output "[makeDBG] Found reference(s) to:`n$(OutputMessages($($referencedPackages | Format-Table | Out-String)))"
+Write-Output "[makeDBG] Found reference(s):`n$(OutputMessages($($referencedPackages | Format-Table | Out-String)))"
 if ($referencedPackages.Count -eq  0)
 {
-    Write-Output "[makeDBG] No <PackageReference> found, probably not a .Net project; attempting .Net Framework style."
+    Write-Output "[makeDBG] No <PackageReference> found, probably not a .net project; attempting .netFramework style."
     $referencedPackages = $csproj.Project.ItemGroup.Reference | Where-Object { $_ -ne $null }
     if ($referencedPackages.Count -eq  0)
     {
-        Write-Output "[makeDBG] No <Reference> found, NOTHING TO DO."
+        Write-Output "[makeDBG] No <Reference> found. NOTHING TO DO."
     }
 }
 
@@ -83,7 +84,7 @@ foreach ($package in $referencedPackages)
         Write-Output "[makeDBG] (not a reference itemgroup, skip)"
         continue
     }
-    Write-Output "[makeDBG] - Found reference to package: [$pkgname / $pkgversion]"
+    Write-Output "[makeDBG] - Handling referenced package: [$pkgname / $pkgversion]"
     if ($flagUnhandledPackagesOnly -and $packageAlreadyHandled)
     {
         Write-Output "[makeDBG] --- [$pkgname / $pkgversion] ALREADY handled and ONLY newer packages are targeted. Skip."
@@ -93,7 +94,7 @@ foreach ($package in $referencedPackages)
 
     $pkgversionDBG = $pkgversion + "-dbg" #The DEBUG package will have the VERSION suffix as '-dbg'
 
-    if (-not ($pkgversion.EndsWith("-dbg"))) #this is our DEBUG suffix marker
+    if (-not ($pkgversion.EndsWith("-dbg"))) #this is our suffix marker for DEBUG packages
     {
         Write-Output "[makeDBG] --- Searching for:            [$pkgname / $pkgversionDBG]..."
         
@@ -104,8 +105,9 @@ foreach ($package in $referencedPackages)
         # Combine all the Costco based packages sources into an argument for "nuget list", like: -Source "location1" -Source "location2"...
         $costcoLocations = $CostcoRegisteredPackageSources| ForEach-Object { "-Source `"$($_.Location)`" " }
         $locations_as_args = $costcoLocations -join " "
+        Write-Output "[makeDBG] ---(Searching on location(s): [$locations_as_args])"
 
-        #Execute a NUGET LIST command
+        #Execute a NUGET LIST command; TODO: INSTALL nuget if not installed
         $packagesLookup = Invoke-Expression "nuget list $pkgname $($locations_as_args) -AllVersions -PreRelease"
 
         #if there's a DEBUG version (suffixed with '-dbg') within the available versions returned by 'nuget list' cmd above

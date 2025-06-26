@@ -50,59 +50,45 @@ namespace DbgPkgEnabler
             this.Close();
         }
 
-        private void RunButton_Click(object sender, RoutedEventArgs e)
+        private void DebugifyButton_Click(object sender, RoutedEventArgs e)
         {
-            //string psCommand = "ls -Force";
+            this.DebugifyBtn.IsEnabled = false;
+            _ = ThreadHelper.JoinableTaskFactory.RunAsync(async () => await ExecutePowerShellScriptAsync(true));
+        }
 
-            var psi = new ProcessStartInfo
+        private async Task ExecutePowerShellScriptAsync(bool bForceCheckAll)
+        {
+            string output = string.Empty;
+            string error = string.Empty;
+            // This method can be used to execute the PowerShell script asynchronously if needed
+            await Task.Run(() =>
             {
-                FileName = "powershell.exe",
-                //Arguments = $"-NoProfile -Command \"{psCommand}\"",
-                Arguments = $"-ExecutionPolicy Bypass -File \"{_scriptPath}\" -csprojfile \"{_csprojName}\" -forceCheckAll",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
+                string ps1arguments = $"\"{_scriptPath}\" -csprojfile \"{_csprojName}\"" + (bForceCheckAll ? " -forceCheckAll" : string.Empty);
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "powershell.exe",
+                    //Arguments = $"-ExecutionPolicy Bypass -File \"{_scriptPath}\" -csprojfile \"{_csprojName}\" -forceCheckAll",
+                    Arguments = $"-ExecutionPolicy Bypass -File " + ps1arguments,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
 
-            using (var process = System.Diagnostics.Process.Start(psi))
-            {
-                string output = process.StandardOutput.ReadToEnd();
-                string error = process.StandardError.ReadToEnd();
-                process.WaitForExit();
+                using (var process = System.Diagnostics.Process.Start(psi))
+                {
+                    output = process.StandardOutput.ReadToEnd();
+                    error = process.StandardError.ReadToEnd();
+                    process.WaitForExit();
 
-                // Do something with the output
-                CmdsExecOutput.Text = !string.IsNullOrWhiteSpace(error) ? error : output;
-            }
+                    // Do something with the output
+                    //CmdsExecOutput.Text = !string.IsNullOrWhiteSpace(error) ? error : output;
+                }
+            });
 
-            //var process = new System.Diagnostics.Process { StartInfo = psi };
-            //process.OutputDataReceived += (sender, e) =>
-            //{
-            //    if (!string.IsNullOrEmpty(e.Data))
-            //    {
-            //        _ = Task.Run(async () =>
-            //        {
-            //            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-            //            CmdsExecOutput.AppendText(e.Data + "\n");
-            //        });
-            //    }
-            //};
-            //process.ErrorDataReceived += (sender, e) =>
-            //{
-            //    if (!string.IsNullOrEmpty(e.Data))
-            //    {
-            //        _ = Task.Run(async () =>
-            //        {
-
-            //            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-            //            CmdsExecOutput.AppendText("ERROR: " + e.Data + "\n");
-            //        });
-            //    }
-            //};
-            //process.Start();
-            //process.BeginOutputReadLine();
-            //process.BeginErrorReadLine();
-            //process.WaitForExit();
+            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+            CmdsExecOutput.Text = !string.IsNullOrWhiteSpace(error) ? error : output;
+            this.DebugifyBtn.IsEnabled = true;
         }
 
         private string ExtractResourceToTempFile(string resourceName)
