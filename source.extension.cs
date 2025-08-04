@@ -9,10 +9,10 @@ namespace DbgPkgsEnabler
     {
         public const string Id = "DbgPkgsEnabler.e2c91054-5cb7-4668-b161-02fc5bfb59a4";
         public const string Name = "DbgPkgsEnabler";
-        public const string Description = @"Empty VSIX Project.";
+        public const string Description = @"Replace nuget packages with DEBUG ones (if these exists).";
         public const string Language = "en-US";
-        public const string Version = "1.0";
-        public const string Author = "Catalin Siicu csiicu";
+        public const string Version = "1.1";
+        public const string Author = "Catalin M. Siicu (csiicu)";
         public const string Tags = "";
     }
 }

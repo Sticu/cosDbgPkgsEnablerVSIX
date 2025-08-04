@@ -20,7 +20,7 @@ namespace DbgPkgsEnabler
     /// </summary>
     internal sealed partial class PackageIds
     {
-        public const int DbgPkgsEnablerMenuGroup = 0x0001;
+        public const int DbgPkgsEnablerMenuGroup = 0x0101;
         public const int EnableDbgPkgsCommand = 0x0100;
     }
 }

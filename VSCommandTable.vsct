@@ -30,7 +30,7 @@
 
   <Symbols>
     <GuidSymbol name="DbgPkgsEnabler" value="{e2ae0d0a-d76f-4b85-a44b-163a7d51a22e}">
-      <IDSymbol name="DbgPkgsEnablerMenuGroup" value="0x0001" />
+      <IDSymbol name="DbgPkgsEnablerMenuGroup" value="0x0101" />
       <IDSymbol name="EnableDbgPkgsCommand" value="0x0100" />
     </GuidSymbol>
   </Symbols>
