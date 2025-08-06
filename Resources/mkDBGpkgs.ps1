@@ -16,44 +16,64 @@ function OutputMessages
 }
 
 
-###################
-# SCRIPT MAIN BODY
-###################
-if ([string]::IsNullOrWhiteSpace($csprojfile))
+####################
+# SCRIPT MAIN BODY #
+####################
+if ([string]::IsNullOrWhiteSpace($csprojfile) -or -not (Test-Path $csprojfile -PathType Leaf))
 {
-    Write-Error "ERROR: No .csproj file specified. Please provide a valid csproj file!"
+    Write-Error "ERROR: No/invalid .csproj file! Please provide a valid csproj file."
     exit 1
 }
 
 $CurrentFileName = Split-Path -Path $PSCommandPath -Leaf
 Write-Output "[makeDBG] (Running the script: $CurrentFileName)"
 
-#---Construct the name of the file that keeps track of the already touched packages 
+#---Construct the name of the file that keeps track of the already handled packages (from previous runs)
+# File name format: mkDBGpkg-<csproj_sanitized_path>.csv. Saved within the user %TEMP% folder.
+# (Using the .csproj full PATH as part of the filename allows to have multiple identical projects handled independently by this script)
 $TMP_FILENAME_ROOT = "mkDBGpkg"
 $invalidFilenameChars = ([System.IO.Path]::GetInvalidFileNameChars() + [System.IO.Path]::GetInvalidPathChars() + "." + " ") -join ''
 $invalidFilenameChars = [regex]::Escape($invalidFilenameChars)
 $sanitizedFilename = $csprojfile -replace "[$invalidFilenameChars]", "-"
-$handledPackagesTrackingFile = $env:TEMP + "\$($TMP_FILENAME_ROOT)-$($sanitizedFilename).csv"
-$flagUnhandledPackagesOnly = $FALSE
+$handledPackagesTrackingFile = Join-Path $env:TEMP "$TMP_FILENAME_ROOT-$sanitizedFilename.csv"
 
+# Retrieve the registered nuget sources - filter only on Costco based feeds.
+# NOTE: this assumes Costco locations are in the form of "https://pkgs.dev.azure.com/COSTCOcloudops/..."
+$xAllNugetSources = Get-PackageSource
+[array]$CostcoRegisteredPackageSources = Get-PackageSource | Where-Object {$_.Location -Like "*costco*"}
+# Combine all the Costco based packages sources into an argument for "nuget list", like: -Source "location1" -Source "location2"...
+$costcoLocations = $CostcoRegisteredPackageSources| ForEach-Object { "-Source `"$($_.Location)`" " }
+$locations_as_args = ($costcoLocations -join " ").Trim()
+
+# Create "nuget list" arguments as an array
+$nugetSearchPackagesArgs = @("list", $pkgname, "-AllVersions", "-PreRelease")
+# Also add each nuget source as a separate argument
+foreach ($source in $CostcoRegisteredPackageSources) {
+    $nugetSearchPackagesArgs += "-Source"
+    $nugetSearchPackagesArgs += $source.Location
+}
+
+$flagUnhandledPackagesOnly = $FALSE
 Write-Output "[makeDBG] Checking [$handledPackagesTrackingFile] for previously handled packages"
 [array]$previouslyHandledPackages = [PSCustomObject]@()
-if (Test-Path $handledPackagesTrackingFile)
+if (Test-Path $handledPackagesTrackingFile -PathType Leaf) #file with previously handled packages does exist
 {
     $previouslyHandledPackages = Import-Csv -Path $handledPackagesTrackingFile
     Write-Output "[makeDBG] Packages previously handled:`n$(OutputMessages($($previouslyHandledPackages | Format-Table | Out-String)))"
 }
-else
+else #file does NOT exist
 {
-    Write-Output "[makeDBG] No 'previously handled packages' file was found."
+    $flagUnhandledPackagesOnly = $FALSE #if the temp file does not exist, we will handle ALL packages
+    Write-Output "[makeDBG] No previously handled packages found. Will handle ALL project packages."
 }
 
 if ($forceCheckAll)
 {
+    $flagUnhandledPackagesOnly = $FALSE
     Write-Output "[makeDBG] 'forceCheckAll' flag specified => will check ALL project packages, including those previously handled"
 }
 
-# ---Retrieve all the referenced NuGet packages and try to replace them with DEBUG version, IF these do exist
+# ---Retrieve all the NuGet packages referenced within the .csproj file---
 Write-Output "[makeDBG]"
 Write-Output "[makeDBG] Parsing project file: [$csprojfile]"
 
@@ -72,6 +92,7 @@ if ($referencedPackages.Count -eq  0)
     }
 }
 
+# Handle each of the referenced package retrieved above
 foreach ($package in $referencedPackages)
 {
     $pkgname = $($package.Include)
@@ -84,8 +105,9 @@ foreach ($package in $referencedPackages)
         Write-Output "[makeDBG] (not a reference itemgroup, skip)"
         continue
     }
+
     Write-Output "[makeDBG] - Handling referenced package: [$pkgname / $pkgversion]"
-    if ($flagUnhandledPackagesOnly -and $packageAlreadyHandled)
+    if ($packageAlreadyHandled -and -not ($forceCheckAll))
     {
         Write-Output "[makeDBG] --- [$pkgname / $pkgversion] ALREADY handled and ONLY newer packages are targeted. Skip."
         $handledPackages += [PSCustomObject]@{package=$pkgname;version=$pkgversion}
@@ -94,34 +116,62 @@ foreach ($package in $referencedPackages)
 
     $pkgversionDBG = $pkgversion + "-dbg" #The DEBUG package will have the VERSION suffix as '-dbg'
 
-    if (-not ($pkgversion.EndsWith("-dbg"))) #this is our suffix marker for DEBUG packages
+    if (-not ($pkgversion.EndsWith("-dbg"))) #if the current package is not already a DEBUG one
     {
-        Write-Output "[makeDBG] --- Searching for:            [$pkgname / $pkgversionDBG]..."
+        Write-Output "[makeDBG] --- Searching for:             [$pkgname / $pkgversionDBG]..."
         
-        # Get only Costco based feeds from all the registered Nuget sources.
-        # NOTE: this assumes Costco locations are in the form of "https://pkgs.dev.azure.com/COSTCOcloudops/..."
-        [array]$CostcoRegisteredPackageSources = Get-PackageSource | Where-Object {$_.Location -Like "*costco*"}
-
-        # Combine all the Costco based packages sources into an argument for "nuget list", like: -Source "location1" -Source "location2"...
-        $costcoLocations = $CostcoRegisteredPackageSources| ForEach-Object { "-Source `"$($_.Location)`" " }
-        $locations_as_args = $costcoLocations -join " "
         Write-Output "[makeDBG] ---(Searching on location(s): [$locations_as_args])"
+        if ([string]::IsNullOrWhiteSpace($locations_as_args))
+        {
+            Write-Output "[makeDBG] ---(No Costco spceific nuget sources registered, will search on ALL registered sources)"
+        }
 
-        #Execute a NUGET LIST command; TODO: INSTALL nuget if not installed
-        $packagesLookup = Invoke-Expression "nuget list $pkgname $($locations_as_args) -AllVersions -PreRelease"
+        #Execute the NUGET LIST command (TODO: INSTALL nuget if not installed)
+        #$nugetSearchPackagesCommand = "nuget list $pkgname $($locations_as_args) -AllVersions -PreRelease"
+        #$packagesLookup = Invoke-Expression $nugetSearchPackagesCommand
+        #$packagesLookup = & nuget $nugetArgs 2>&1 | Tee-Object -Variable output #2>&1
+
+        # Call nuget with the array of arguments; the methods above does not work with the -Source argument
+        #$packagesLookup = & nuget $nugetSearchPackagesArgs $pkgname | Out-Host
+
+
+        ###$process = Start-Process -FilePath "nuget" -ArgumentList $nugetSearchPackagesArgs -NoNewWindow -Wait -PassThru -RedirectStandardOutput "C:\Users\csiic\AppData\Local\Temp\aaaa.txt"
+
+        #iex "& { $(irm https://aka.ms/install-artifacts-credprovider.ps1) } -InstallNet8"
+
+        $pachete = Find-Package -AllVersions -AllowPrereleaseVersions -Source $CostcoRegisteredPackageSources[0].Location -ErrorAction Stop -ProviderName NuGet
+        $pachete | ForEach-Object {
+            $_.Id + " " + $_.Version
+        } | Out-Host
+
+
+        #special case: if the use didn't authenticate to the Costco feeds, the nuget list command will return an error message
+        $credentialsneeded = $packagesLookup  | Where-Object {$_ -Like "*Please provide credentials*"}
+
+        $credentialsneeded
 
         #if there's a DEBUG version (suffixed with '-dbg') within the available versions returned by 'nuget list' cmd above
         if ($packagesLookup -match $pkgversionDBG)
         {
             Write-Output "[makeDBG] --- ... DEBUG version as [$pkgname / $pkgversionDBG] FOUND, installing..."
-            dotnet add package $pkgname --version $pkgversionDBG
+            try
+            {
+                # Attempt to install the DEBUG version of the package
+                dotnet add $csprojfile package $pkgname --version $pkgversionDBG
+            }
+            catch
+            {
+                Write-Error "[makeDBG] ERROR: Failed to install DEBUG version [$pkgname / $pkgversionDBG]."
+                continue
+            }
+            
             Write-Output "[makeDBG] --- ... DEBUG version [$pkgname / $pkgversionDBG] installed."
             $handledPackages += [PSCustomObject]@{package=$pkgname;version=$pkgversionDBG}
         }
         else
         {
             $handledPackages += [PSCustomObject]@{package=$pkgname;version=$pkgversion}
-            Write-Output "[makeDBG] --- ... NO DEBUG version found as [$pkgname / $pkgversionDBG], skipping."
+            Write-Output "[makeDBG] --- ...NO DBG version found as [$pkgname / $pkgversionDBG], skip handling."
         }
     }
     else

@@ -23,6 +23,8 @@ namespace DbgPkgEnabler
             //The way to refer to the embedded resource: {DefaultNamespace}.{Folder}.{FileName}; please keep updated!
             _scriptPath = ExtractResourceToTempFile(typeof(ProgressDlg).Namespace + ".Resources.mkDBGpkgs.ps1");
 
+            this.ProgressOperationRunning.Visibility = Visibility.Hidden;
+
             // Start the long-running action when the dialog is loaded
             await RunLongRunningActionAsync();
         }
@@ -58,6 +60,8 @@ namespace DbgPkgEnabler
 
         private async Task ExecutePowerShellScriptAsync(bool bForceCheckAll)
         {
+            this.ProgressOperationRunning.Visibility = Visibility.Visible;
+            this.ProgressOperationRunning.IsIndeterminate = true;
             string output = string.Empty;
             string error = string.Empty;
             // This method can be used to execute the PowerShell script asynchronously if needed
@@ -89,6 +93,8 @@ namespace DbgPkgEnabler
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
             CmdsExecOutput.Text = !string.IsNullOrWhiteSpace(error) ? error : output;
             this.DebugifyBtn.IsEnabled = true;
+            this.ProgressOperationRunning.IsIndeterminate = false;
+            this.ProgressOperationRunning.Visibility = Visibility.Hidden;
         }
 
         private string ExtractResourceToTempFile(string resourceName)
