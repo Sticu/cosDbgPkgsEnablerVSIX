@@ -123,7 +123,7 @@ foreach ($package in $referencedPackages)
         Write-Output "[makeDBG] ---(Searching on location(s): [$locations_as_args])"
         if ([string]::IsNullOrWhiteSpace($locations_as_args))
         {
-            Write-Output "[makeDBG] ---(No Costco spceific nuget sources registered, will search on ALL registered sources)"
+            Write-Output "[makeDBG] ---(No Costco specific nuget sources registered, will search on ALL registered sources)"
         }
 
         #Execute the NUGET LIST command (TODO: INSTALL nuget if not installed)
@@ -139,7 +139,18 @@ foreach ($package in $referencedPackages)
 
         #iex "& { $(irm https://aka.ms/install-artifacts-credprovider.ps1) } -InstallNet8"
 
-        $pachete = Find-Package -AllVersions -AllowPrereleaseVersions -Source $CostcoRegisteredPackageSources[0].Location -ErrorAction Stop -ProviderName NuGet
+        Write-Output "[makeDBG] ---(...looking...)"
+
+        $sources = Get-PackageSource
+        $sources
+        #$credential = Get-Credential -Message "Please provide credentials for the Costco feeds (if needed)."
+
+        $pachete = Find-Package -Name $pkgname  -AllVersions -AllowPrereleaseVersions `
+                    -Source "nuget.org" `
+                    -ProviderName NuGet #-Credential $credential -ErrorAction Stop
+                    
+
+        #$pachete = Find-Package -AllVersions -AllowPrereleaseVersions -Source $CostcoRegisteredPackageSources[0].Location -ErrorAction Stop -ProviderName NuGet
         $pachete | ForEach-Object {
             $_.Id + " " + $_.Version
         } | Out-Host
