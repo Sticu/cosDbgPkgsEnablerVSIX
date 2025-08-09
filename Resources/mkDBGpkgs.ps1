@@ -1,4 +1,6 @@
-﻿param (
+﻿#"C:\mlty\consumeNugetLib\consumeNugetLib.csproj"
+#"C:\mlty\conUseTestNuget\conUseTestNuget.csproj"
+param (
       [Parameter(Mandatory=$true)] [string]$csprojfile = "",
       [switch] $forceCheckAll
       )
@@ -135,8 +137,9 @@ foreach ($package in $referencedPackages)
             else
             {
                 #combine all the packages found
-                $allPackagesFound = $jsonPackages.searchResult | ForEach-Object { $_.packages }
-                Write-Output "[makeDBG] ---- found $($allPackagesFound.Count) packages on depot: [$($costcoPkgSrc.Name)])"
+                $allPackagesFound = $jsonPackages.searchResult | ForEach-Object { $_.packages } | Where-Object { $_ }
+                $allPackagesFound = @($allPackagesFound)
+                Write-Output "[makeDBG] ---- found <$($allPackagesFound.Count)> [$pkgname] packages on depot: [$($costcoPkgSrc.Name)])"
                 if ($allPackagesFound -imatch $pkgversionDBG)
                 {
                     Write-Output "[makeDBG] ---- found DEBUG version [$pkgname / $pkgversionDBG] on NuGet depot [$($costcoPkgSrc.Name)])"
