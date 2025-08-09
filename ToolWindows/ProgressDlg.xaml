@@ -7,9 +7,8 @@
                         xmlns:toolkit="clr-namespace:Community.VisualStudio.Toolkit;assembly=Community.VisualStudio.Toolkit"
                         toolkit:Themes.UseVsTheme="True"
                         mc:Ignorable="d"
-                        Height="300"
-                        Width="800"
-                        d:DesignHeight="300">
+                        Width="1024"
+                        Height="768">
     <Grid Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>

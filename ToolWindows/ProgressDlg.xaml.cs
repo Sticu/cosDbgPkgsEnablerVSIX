@@ -2,6 +2,7 @@
 using Microsoft.VisualStudio.PlatformUI;
 using System.Diagnostics;
 using System.IO;
+using System.Text;
 using System.Windows;
 
 namespace DbgPkgEnabler
@@ -62,36 +63,65 @@ namespace DbgPkgEnabler
         {
             this.ProgressOperationRunning.Visibility = Visibility.Visible;
             this.ProgressOperationRunning.IsIndeterminate = true;
-            string output = string.Empty;
-            string error = string.Empty;
-            // This method can be used to execute the PowerShell script asynchronously if needed
-            await Task.Run(() =>
+
+            // Clear previous output
+            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+            CmdsExecOutput.Text = "Starting execution...\r\n";
+
+            string ps1arguments = $"\"{_scriptPath}\" -csprojfile \"{_csprojName}\"" + (bForceCheckAll ? " -forceCheckAll" : string.Empty);
+
+            var psi = new ProcessStartInfo
             {
-                string ps1arguments = $"\"{_scriptPath}\" -csprojfile \"{_csprojName}\"" + (bForceCheckAll ? " -forceCheckAll" : string.Empty);
-                var psi = new ProcessStartInfo
+                FileName = "powershell.exe",
+                Arguments = $"-ExecutionPolicy Bypass -File {ps1arguments}",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            using (var process = new System.Diagnostics.Process())
+            {
+                process.StartInfo = psi;
+
+                // Set up event handlers for output
+                StringBuilder outputBuilder = new StringBuilder();
+                StringBuilder errorBuilder = new StringBuilder();
+
+                process.OutputDataReceived += async (sender, args) =>
                 {
-                    FileName = "powershell.exe",
-                    //Arguments = $"-ExecutionPolicy Bypass -File \"{_scriptPath}\" -csprojfile \"{_csprojName}\" -forceCheckAll",
-                    Arguments = $"-ExecutionPolicy Bypass -File " + ps1arguments,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
+                    if (!string.IsNullOrEmpty(args.Data))
+                    {
+                        outputBuilder.AppendLine(args.Data);
+                        await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                        CmdsExecOutput.Text = outputBuilder.ToString();
+                        CmdsExecOutput.ScrollToEnd();
+                    }
                 };
 
-                using (var process = System.Diagnostics.Process.Start(psi))
+                process.ErrorDataReceived += async (sender, args) =>
                 {
-                    output = process.StandardOutput.ReadToEnd();
-                    error = process.StandardError.ReadToEnd();
-                    process.WaitForExit();
+                    if (!string.IsNullOrEmpty(args.Data))
+                    {
+                        errorBuilder.AppendLine("ERROR: " + args.Data);
+                        await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                        CmdsExecOutput.Text = errorBuilder.ToString() + outputBuilder.ToString();
+                        CmdsExecOutput.ScrollToEnd();
+                    }
+                };
 
-                    // Do something with the output
-                    //CmdsExecOutput.Text = !string.IsNullOrWhiteSpace(error) ? error : output;
-                }
-            });
+                // Start the process
+                process.Start();
+
+                // Begin asynchronous reading of output and error streams
+                process.BeginOutputReadLine();
+                process.BeginErrorReadLine();
+
+                // Wait for the process to complete
+                await Task.Run(() => process.WaitForExit());
+            }
 
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-            CmdsExecOutput.Text = !string.IsNullOrWhiteSpace(error) ? error : output;
             this.DebugifyBtn.IsEnabled = true;
             this.ProgressOperationRunning.IsIndeterminate = false;
             this.ProgressOperationRunning.Visibility = Visibility.Hidden;
