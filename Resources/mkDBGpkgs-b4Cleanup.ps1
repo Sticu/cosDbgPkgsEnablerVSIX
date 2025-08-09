@@ -21,7 +21,7 @@ function OutputMessages
 ####################
 if ([string]::IsNullOrWhiteSpace($csprojfile) -or -not (Test-Path $csprojfile -PathType Leaf))
 {
-    Write-Error "[makeDBG] ERROR: No/invalid .csproj file! Please provide a valid csproj file."
+    Write-Error "ERROR: No/invalid .csproj file! Please provide a valid csproj file."
     exit 1
 }
 
@@ -38,19 +38,19 @@ $sanitizedFilename = $csprojfile -replace "[$invalidFilenameChars]", "-"
 $handledPackagesTrackingFile = Join-Path $env:TEMP "$TMP_FILENAME_ROOT-$sanitizedFilename.csv"
 
 # Retrieve the registered nuget sources - filter only on Costco based feeds.
-# NOTE: this assumes that Costco locations are in the form of "https://pkgs.dev.azure.com/COSTCOcloudops/..."
-$flagSearchCostcoNugetDepotsOnly = $TRUE
+# NOTE: this assumes Costco locations are in the form of "https://pkgs.dev.azure.com/COSTCOcloudops/..."
+$xAllNugetSources = Get-PackageSource
 [array]$costcoRegisteredPackageSources = Get-PackageSource | Where-Object {$_.Location -Like "*costco*"}
-if ($costcoRegisteredPackageSources.Count -eq 0)
-{
-    $flagSearchCostcoNugetDepotsOnly = $FALSE
-    Write-Output "[makeDBG] ---No Costco specific nuget depots registered, will search on ALL registered depots"
-}
-else
-{
-    $displayDepotsMessage = $(OutputMessages($costcoRegisteredPackageSources | Format-Table Name, Location -Autosize | Out-String -Width 256))
-    Write-Output "[makeDBG] Found <$($costcoRegisteredPackageSources.Count)> registered Costco specific NuGet depots:"
-    Write-Output "$displayDepotsMessage"
+# Combine all the Costco based packages sources into an argument for "nuget list", like: -Source "location1" -Source "location2"...
+$costcoLocations = $costcoRegisteredPackageSources| ForEach-Object { "-Source `"$($_.Location)`" " }
+$locations_as_args = ($costcoLocations -join " ").Trim()
+
+# Create "nuget list" arguments as an array
+$nugetSearchPackagesArgs = @("list", $pkgname, "-AllVersions", "-PreRelease")
+# Also add each nuget source as a separate argument
+foreach ($source in $costcoRegisteredPackageSources) {
+    $nugetSearchPackagesArgs += "-Source"
+    $nugetSearchPackagesArgs += $source.Location
 }
 
 $flagUnhandledPackagesOnly = $FALSE
@@ -116,38 +116,98 @@ foreach ($package in $referencedPackages)
 
     $pkgversionDBG = $pkgversion + "-dbg" #The DEBUG package will have the VERSION suffix as '-dbg'
 
-    if (-not ($pkgversion.EndsWith("-dbg"))) #if the current package is not already a DEBUG one, go handle it
+    if (-not ($pkgversion.EndsWith("-dbg"))) #if the current package is not already a DEBUG one
     {
         Write-Output "[makeDBG] --- Searching for:             [$pkgname / $pkgversionDBG]..."
         
+        Write-Output "[makeDBG] ---(Searching on location(s): [$locations_as_args])"
+        if ([string]::IsNullOrWhiteSpace($locations_as_args))
+        {
+            Write-Output "[makeDBG] ---(No Costco specific nuget sources registered, will search on ALL registered sources)"
+        }
+
+        #Execute the NUGET LIST command (TODO: INSTALL nuget if not installed)
+        #$nugetSearchPackagesCommand = "nuget list $pkgname $($locations_as_args) -AllVersions -PreRelease"
+        #$packagesLookup = Invoke-Expression $nugetSearchPackagesCommand
+        #$packagesLookup = & nuget $nugetArgs 2>&1 | Tee-Object -Variable output #2>&1
+
+        # Call nuget with the array of arguments; the methods above does not work with the -Source argument
+        #$packagesLookup = & nuget $nugetSearchPackagesArgs $pkgname | Out-Host
+
+
+        ###$process = Start-Process -FilePath "nuget" -ArgumentList $nugetSearchPackagesArgs -NoNewWindow -Wait -PassThru -RedirectStandardOutput "C:\Users\csiic\AppData\Local\Temp\aaaa.txt"
+
+        #iex "& { $(irm https://aka.ms/install-artifacts-credprovider.ps1) } -InstallNet8"
+
+        Write-Output "[makeDBG] (...looking...)"
+
+        #$jsonPackages = dotnet package search "newtonsoft" --verbosity detailed --prerelease --format json | ConvertFrom-Json
+        #$allPackages = $jsonPackages.searchResult | ForEach-Object { $_.packages }
+        #$jsonPackages.searchResult.Count
+        #$jsonPackages.searchResult[0].packages.Count
+
         $dbgPackageFound = $false
         foreach ($costcoPkgSrc in $costcoRegisteredPackageSources)
         {
-            Write-Output "[makeDBG] --- Looking for pkgs on the NuGet depot named: [$($costcoPkgSrc.Name)]"
+            Write-Output "[makeDBG] --- Looking for pkgs on your NuGet depot named: [$($costcoPkgSrc.Name)]"
             $jsonPackages = dotnet package search $pkgname --exact-match `
                                 --source "$($costcoPkgSrc.Name)" --verbosity detailed `
                                 --prerelease --format json | ConvertFrom-Json
             if ($jsonPackages.problems.Count -gt 0)
             {
-                Write-Output "[makeDBG] ----- ERROR getting packages from this NuGet depot. (Check and/or enable the source URL in Visual Studio)"
-                Write-Output "[makeDBG] ----- ERRORMSG: $($jsonPackages.problems[0].text)"
+                Write-Output "[makeDBG] ----- ERROR with the packages NuGet depot. (Maybe not enabled in Visual Studio?)"
+                Write-Output "[makeDBG] ----- ERROR: $($jsonPackages.problems[0].text)"
             }
             else
             {
                 #combine all the packages found
                 $allPackagesFound = $jsonPackages.searchResult | ForEach-Object { $_.packages }
-                Write-Output "[makeDBG] ---- found $($allPackagesFound.Count) packages on depot: [$($costcoPkgSrc.Name)])"
+                Write-Output "[makeDBG] ---- found $($allPackagesFound.Count) packages on source: [$($costcoPkgSrc.Name)])"
                 if ($allPackagesFound -imatch $pkgversionDBG)
                 {
-                    Write-Output "[makeDBG] ---- found DEBUG version [$pkgname / $pkgversionDBG] on NuGet depot [$($costcoPkgSrc.Name)])"
-                    $dbgPackageFound = $true
+                    Write-Output "[makeDBG] ---- DEBUG version [$pkgname / $pkgversionDBG] FOUND on NuGet depot: [$($costcoPkgSrc.Name)])"
+                    #$dbgPackageFound = $true
                     break
                 }
             }
         }
+        if (-not $dbgPackageFound)
+        {
+            Write-Output "[makeDBG] --- DEBUG version [$pkgname / $pkgversionDBG] NOT FOUND on any of the Costco NuGet depots."
+        }
 
-        #if there's a DEBUG version (suffixed with '-dbg') within the available versions returned by the lookup cmd above
-        if ($dbgPackageFound)
+        $sources = Get-PackageSource
+        $sources
+        
+        ###Find-Package -Name Newtonsoft.Json
+        $jsonPackages = dotnet package search NuGetLiboTest --exact-match --source "csiicu.perso" --verbosity detailed --prerelease --format json | ConvertFrom-Json
+        
+        $jsonPackages1 = dotnet package search NuGetLiboTest --exact-match --source "csiicu-experiment-cosco" --verbosity detailed --prerelease --format json | ConvertFrom-Json
+
+        $jsonPackages2 = dotnet package search NuGetLiboTest --exact-match --source "https://pkgs.dev.azure.com/costcocloudops/Membership/_packaging/csiicu-v2-s1/nuget/v3/index.json" --prerelease --format json | ConvertFrom-Json
+
+        $jsonPackages3 = dotnet package search NuGetLiboTest --exact-match --source "https://pkgs.dev.azure.com/costcocloudops/Membership/_packaging/MGLO_Nuget_Packages/nuget/v3/index.json" --prerelease --format json | ConvertFrom-Json
+
+        #$credential = Get-Credential -Message "Please provide credentials for the Costco feeds (if needed)."
+
+        $pachete = Find-Package -Name $pkgname  -AllVersions -AllowPrereleaseVersions `
+                    -Source "nuget.org" `
+                    -ProviderName NuGet #-Credential $credential -ErrorAction Stop
+                    
+
+        #$pachete = Find-Package -AllVersions -AllowPrereleaseVersions -Source $CostcoRegisteredPackageSources[0].Location -ErrorAction Stop -ProviderName NuGet
+        $pachete | ForEach-Object {
+            $_.Id + " " + $_.Version
+        } | Out-Host
+
+
+        #special case: if the use didn't authenticate to the Costco feeds, the nuget list command will return an error message
+        $credentialsneeded = $packagesLookup  | Where-Object {$_ -Like "*Please provide credentials*"}
+
+        $credentialsneeded
+
+        #if there's a DEBUG version (suffixed with '-dbg') within the available versions returned by 'nuget list' cmd above
+        if ($packagesLookup -match $pkgversionDBG)
         {
             Write-Output "[makeDBG] --- ... DEBUG version as [$pkgname / $pkgversionDBG] FOUND, installing..."
             try
@@ -167,7 +227,7 @@ foreach ($package in $referencedPackages)
         else
         {
             $handledPackages += [PSCustomObject]@{package=$pkgname;version=$pkgversion}
-            Write-Output "[makeDBG] --- NO DBG version found as [$pkgname / $pkgversionDBG], skip handling."
+            Write-Output "[makeDBG] --- ...NO DBG version found as [$pkgname / $pkgversionDBG], skip handling."
         }
     }
     else
