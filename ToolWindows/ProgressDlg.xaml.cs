@@ -19,25 +19,26 @@ namespace DbgPkgEnabler
             Loaded += ProgressDlg_Loaded;
         }
 
-        private async void ProgressDlg_Loaded(object sender, RoutedEventArgs e)
+        private void ProgressDlg_Loaded(object sender, RoutedEventArgs e)
         {
             //The way to refer to the embedded resource: {DefaultNamespace}.{Folder}.{FileName}; please keep updated!
             _scriptPath = ExtractResourceToTempFile(typeof(ProgressDlg).Namespace + ".Resources.mkDBGpkgs.ps1");
 
             this.ProgressOperationRunning.Visibility = Visibility.Hidden;
+            this.OperationRunningIndicator.Visibility = Visibility.Hidden;
 
             // Start the long-running action when the dialog is loaded
-            await RunLongRunningActionAsync();
+            //await RunLongRunningActionAsync();
         }
 
         private async Task RunLongRunningActionAsync()
         {
             // (for now) Simulate a long-running operation
-            for (int i = 0; i <= 100; i += 10)
+            for (int i = 0; i <= 99; i += 10)
             {
                 // (!) Switch to UI thread before updating UI elements
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-                ProgressBar.Value = i;
+                OperationRunningIndicator.Value = i;
                 ProgressText.Text = $"{i}% completed";
                 // Simulate work
                 await Task.Delay(1000);
@@ -55,18 +56,25 @@ namespace DbgPkgEnabler
 
         private void DebugifyButton_Click(object sender, RoutedEventArgs e)
         {
+            bool bForceCheckAll = this.ChkboxForceCheckAllPackages.IsChecked ?? false;
             this.DebugifyBtn.IsEnabled = false;
-            _ = ThreadHelper.JoinableTaskFactory.RunAsync(async () => await ExecutePowerShellScriptAsync(true));
+            _ = ThreadHelper.JoinableTaskFactory.RunAsync(async () => await ExecutePowerShellScriptAsync(bForceCheckAll));
         }
 
+        /// <summary>
+        /// Execute the PowerShell script asynchronously, displaying its output in the text box.
+        /// </summary>
+        /// <param name="bForceCheckAll">TRUE if forcing handling all packages, FALSE otherwise</param>
         private async Task ExecutePowerShellScriptAsync(bool bForceCheckAll)
         {
             this.ProgressOperationRunning.Visibility = Visibility.Visible;
+            this.OperationRunningIndicator.Visibility = Visibility.Visible;
             this.ProgressOperationRunning.IsIndeterminate = true;
+            this.OperationRunningIndicator.IsIndeterminate = true;
 
             // Clear previous output
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-            CmdsExecOutput.Text = "Starting execution...\r\n";
+            CmdsExecOutput.Text = "Starting execution ...\r\n";
 
             string ps1arguments = $"\"{_scriptPath}\" -csprojfile \"{_csprojName}\"" + (bForceCheckAll ? " -forceCheckAll" : string.Empty);
 
@@ -88,25 +96,31 @@ namespace DbgPkgEnabler
                 StringBuilder outputBuilder = new StringBuilder();
                 StringBuilder errorBuilder = new StringBuilder();
 
-                process.OutputDataReceived += async (sender, args) =>
+                process.OutputDataReceived += (sender, args) =>
                 {
                     if (!string.IsNullOrEmpty(args.Data))
                     {
                         outputBuilder.AppendLine(args.Data);
-                        await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-                        CmdsExecOutput.Text = outputBuilder.ToString();
-                        CmdsExecOutput.ScrollToEnd();
+                        ThreadHelper.JoinableTaskFactory.Run(async delegate
+                        {
+                            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                            CmdsExecOutput.Text = outputBuilder.ToString();
+                            CmdsExecOutput.ScrollToEnd();
+                        });
                     }
                 };
 
-                process.ErrorDataReceived += async (sender, args) =>
+                process.ErrorDataReceived += (sender, args) =>
                 {
                     if (!string.IsNullOrEmpty(args.Data))
                     {
                         errorBuilder.AppendLine("ERROR: " + args.Data);
-                        await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-                        CmdsExecOutput.Text = errorBuilder.ToString() + outputBuilder.ToString();
-                        CmdsExecOutput.ScrollToEnd();
+                        ThreadHelper.JoinableTaskFactory.Run(async delegate
+                        {
+                            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                            CmdsExecOutput.Text = errorBuilder.ToString() + outputBuilder.ToString();
+                            CmdsExecOutput.ScrollToEnd();
+                        });
                     }
                 };
 
@@ -125,7 +139,10 @@ namespace DbgPkgEnabler
             this.DebugifyBtn.IsEnabled = true;
             this.ProgressOperationRunning.IsIndeterminate = false;
             this.ProgressOperationRunning.Visibility = Visibility.Hidden;
+            this.OperationRunningIndicator.IsIndeterminate = false;
+            this.OperationRunningIndicator.Visibility = Visibility.Hidden;
         }
+
 
         private string ExtractResourceToTempFile(string resourceName)
         {

@@ -39,7 +39,7 @@ $invalidFilenameChars = [regex]::Escape($invalidFilenameChars)
 $sanitizedFilename = $csprojfile -replace "[$invalidFilenameChars]", "-"
 $handledPackagesTrackingFile = Join-Path $env:TEMP "$TMP_FILENAME_ROOT-$sanitizedFilename.csv"
 
-# Retrieve the registered nuget sources - filter only on Costco based feeds.
+# Retrieve the registered nuget sources - filter on Costco based feeds.
 # NOTE: this assumes that Costco locations are in the form of "https://pkgs.dev.azure.com/COSTCOcloudops/..."
 $flagSearchCostcoNugetDepotsOnly = $TRUE
 [array]$costcoRegisteredPackageSources = Get-PackageSource | Where-Object {$_.Location -Like "*costco*"}
@@ -51,8 +51,9 @@ if ($costcoRegisteredPackageSources.Count -eq 0)
 else
 {
     $displayDepotsMessage = $(OutputMessages($costcoRegisteredPackageSources | Format-Table Name, Location -Autosize | Out-String -Width 256))
-    Write-Output "[makeDBG] Found <$($costcoRegisteredPackageSources.Count)> registered Costco specific NuGet depots:"
+    Write-Output "[makeDBG] Found <$($costcoRegisteredPackageSources.Count)> registered Costco specific NuGet depot(s):"
     Write-Output "$displayDepotsMessage"
+    Write-Output "[makeDBG]"
 }
 
 $flagUnhandledPackagesOnly = $FALSE
@@ -62,6 +63,7 @@ if (Test-Path $handledPackagesTrackingFile -PathType Leaf) #file with previously
 {
     $previouslyHandledPackages = Import-Csv -Path $handledPackagesTrackingFile
     Write-Output "[makeDBG] Packages previously handled:`n$(OutputMessages($($previouslyHandledPackages | Format-Table | Out-String)))"
+    Write-Output "[makeDBG]"
 }
 else #file does NOT exist
 {
@@ -84,6 +86,7 @@ Write-Output "[makeDBG] Parsing project file: [$csprojfile]"
 [xml]$csproj = Get-Content $csprojfile
 $referencedPackages = $csproj.Project.ItemGroup.PackageReference | Where-Object { $_ -ne $null }
 Write-Output "[makeDBG] Found reference(s):`n$(OutputMessages($($referencedPackages | Format-Table | Out-String)))"
+Write-Output "[makeDBG]"
 if ($referencedPackages.Count -eq  0)
 {
     Write-Output "[makeDBG] No <PackageReference> found, probably not a .net project; attempting .netFramework style."
