@@ -17,10 +17,50 @@ function OutputMessages
     Write-Output $($modifiedOutput)
 }
 
+#-------
+#HELPER - retrieve the registered NuGet package sources (Get-PackageSource returns PowerShell feeds only!)
+#-------
+function Get-NuGetPackageSource {
+    [CmdletBinding()]
+    param ()
 
-####################
-# SCRIPT MAIN BODY #
-####################
+    $nugetOutput = nuget sources list
+    $sources = @()
+
+    for ($i = 0; $i -lt $nugetOutput.Count; $i++) {
+        $line = $nugetOutput[$i]
+        if ($line -match '^\s*\d+\.\s+(.+?)\s+\[(Enabled|Disabled)\]') {
+            $name = $matches[1].Trim()
+            $enabled = $matches[2] -eq 'Enabled'
+            $url = $null
+
+            # Look ahead for the URL line
+            if ($i + 1 -lt $nugetOutput.Count) {
+                $nextLine = $nugetOutput[$i + 1].Trim()
+                if ($nextLine -match '^https?://') {
+                    $url = $nextLine
+                    $i++  # Skip the URL line in next iteration
+                }
+            }
+            $sourceObject = [PSCustomObject]@{
+                Name         = $name
+                Location     = $url
+                IsTrusted    = $false      # NuGet CLI doesn't expose this
+                IsRegistered = $true
+                IsValidated  = $enabled
+                ProviderName = 'NuGet'
+            }
+            $sources += $sourceObject
+        }
+    }
+    return $sources
+}
+
+
+
+###############################################################################
+#                               SCRIPT MAIN BODY                              #
+###############################################################################
 if ([string]::IsNullOrWhiteSpace($csprojfile) -or -not (Test-Path $csprojfile -PathType Leaf))
 {
     Write-Error "[makeDBG] ERROR: No/invalid .csproj file! Please provide a valid csproj file."
@@ -39,9 +79,18 @@ $invalidFilenameChars = [regex]::Escape($invalidFilenameChars)
 $sanitizedFilename = $csprojfile -replace "[$invalidFilenameChars]", "-"
 $handledPackagesTrackingFile = Join-Path $env:TEMP "$TMP_FILENAME_ROOT-$sanitizedFilename.csv"
 
+# Check if the 'nuget' command is available, othwerwise bail out, as we NEED it to retrieve the registered NuGet package sources.
+$nugetExists = Get-Command nuget -ErrorAction SilentlyContinue
+if (-not $nugetExists)
+{
+    Write-Error "[makeDBG] ERROR: 'nuget' command not found! Please ensure NuGet CLI is installed and available in your PATH."
+    Write-Output "[makeDBG] Get NUGET.EXE from https://www.nuget.org/downloads, then restart VS and retry the command!"
+    exit 1
+}
+
 # Retrieve the registered nuget sources - filter on Costco based feeds.
 # NOTE: this assumes that Costco locations are in the form of "https://pkgs.dev.azure.com/COSTCOcloudops/..."
-[array]$allRegisteredPackageDepots = Get-PackageSource
+[array]$allRegisteredPackageDepots = Get-NuGetPackageSource
 [array]$availablePackagesDepots = $allRegisteredPackageDepots
 [array]$costcoRegisteredPackageDepots = $allRegisteredPackageDepots | Where-Object {$_.Location -Like "*costco*"}
 if ($costcoRegisteredPackageDepots.Count -eq 0)
