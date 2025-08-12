@@ -1,9 +1,14 @@
-﻿$jsonPackages = dotnet package search NuGetLiboTest --exact-match --source "csiicu.perso" --verbosity detailed --prerelease --format json | ConvertFrom-Json
+﻿<#
+$jsonPackages = dotnet package search NuGetLiboTest --exact-match --source "csiicu.perso" --verbosity detailed --prerelease --format json | ConvertFrom-Json
 $jsonPackages2 = dotnet package search NuGetLiboTest --exact-match --source "https://pkgs.dev.azure.com/costcocloudops/Membership/_packaging/csiicu-v2-s1/nuget/v3/index.json" --prerelease --format json | ConvertFrom-Json
 $jsonPackages3 = dotnet package search NuGetLiboTest --exact-match --source "https://pkgs.dev.azure.com/costcocloudops/Membership/_packaging/MGLO_Nuget_Packages/nuget/v3/index.json" --prerelease --format json | ConvertFrom-Json
 $h1 = $jsonPackages | ConvertTo-Json -Depth 10
 $h2 = $jsonPackages2 | ConvertTo-Json -Depth 10
 $h3 = $jsonPackages3 | ConvertTo-Json -Depth 10
+#>
+
+
+$jsonPackages = dotnet package search NuGetLiboTest --exact-match  --verbosity detailed --prerelease --format json | ConvertFrom-Json
 
 
 $h1 -eq $h2

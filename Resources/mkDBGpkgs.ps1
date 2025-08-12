@@ -41,17 +41,22 @@ $handledPackagesTrackingFile = Join-Path $env:TEMP "$TMP_FILENAME_ROOT-$sanitize
 
 # Retrieve the registered nuget sources - filter on Costco based feeds.
 # NOTE: this assumes that Costco locations are in the form of "https://pkgs.dev.azure.com/COSTCOcloudops/..."
-$flagSearchCostcoNugetDepotsOnly = $TRUE
-[array]$costcoRegisteredPackageSources = Get-PackageSource | Where-Object {$_.Location -Like "*costco*"}
-if ($costcoRegisteredPackageSources.Count -eq 0)
+[array]$allRegisteredPackageDepots = Get-PackageSource
+[array]$availablePackagesDepots = $allRegisteredPackageDepots
+[array]$costcoRegisteredPackageDepots = $allRegisteredPackageDepots | Where-Object {$_.Location -Like "*costco*"}
+if ($costcoRegisteredPackageDepots.Count -eq 0)
 {
-    $flagSearchCostcoNugetDepotsOnly = $FALSE
-    Write-Output "[makeDBG] ---No Costco specific nuget depots registered, will search on ALL registered depots"
+    Write-Output "[makeDBG] ---No Costco specific NuGet depots, will search on ALL <$($availablePackagesDepots.Count)> registered depots"
+    $displayDepotsMessage = $(OutputMessages($availablePackagesDepots | Format-Table Name, Location -Autosize | Out-String -Width 256))
+    Write-Output "[makeDBG] Found <$($availablePackagesDepots.Count)> registered NuGet depot(s):"
+    Write-Output "$displayDepotsMessage"
+    Write-Output "[makeDBG]"
 }
 else
 {
-    $displayDepotsMessage = $(OutputMessages($costcoRegisteredPackageSources | Format-Table Name, Location -Autosize | Out-String -Width 256))
-    Write-Output "[makeDBG] Found <$($costcoRegisteredPackageSources.Count)> registered Costco specific NuGet depot(s):"
+    $availablePackagesDepots = $costcoRegisteredPackageDepots
+    $displayDepotsMessage = $(OutputMessages($costcoRegisteredPackageDepots | Format-Table Name, Location -Autosize | Out-String -Width 256))
+    Write-Output "[makeDBG] Found <$($costcoRegisteredPackageDepots.Count)> registered Costco specific NuGet depot(s):"
     Write-Output "$displayDepotsMessage"
     Write-Output "[makeDBG]"
 }
@@ -65,7 +70,7 @@ if (Test-Path $handledPackagesTrackingFile -PathType Leaf) #file with previously
     Write-Output "[makeDBG] Packages previously handled:`n$(OutputMessages($($previouslyHandledPackages | Format-Table | Out-String)))"
     Write-Output "[makeDBG]"
 }
-else #file does NOT exist
+else #tracking file does NOT exist
 {
     $flagUnhandledPackagesOnly = $FALSE #if the temp file does not exist, we will handle ALL packages
     Write-Output "[makeDBG] No previously handled packages found. Will handle ALL project packages."
@@ -82,6 +87,7 @@ Write-Output "[makeDBG]"
 Write-Output "[makeDBG] Parsing project file: [$csprojfile]"
 
 [array]$handledPackages = [PSCustomObject]@()
+[array]$debugifieddPackages = [PSCustomObject]@()
 
 [xml]$csproj = Get-Content $csprojfile
 $referencedPackages = $csproj.Project.ItemGroup.PackageReference | Where-Object { $_ -ne $null }
@@ -126,11 +132,11 @@ foreach ($package in $referencedPackages)
         Write-Output "[makeDBG] --- Searching for:             [$pkgname / $pkgversionDBG]..."
         
         $dbgPackageFound = $false
-        foreach ($costcoPkgSrc in $costcoRegisteredPackageSources)
+        foreach ($pkgsDepot in $availablePackagesDepots)
         {
-            Write-Output "[makeDBG] --- Looking for pkgs on the NuGet depot named: [$($costcoPkgSrc.Name)]"
+            Write-Output "[makeDBG] --- Looking for pkgs on the NuGet depot named: [$($pkgsDepot.Name)]"
             $jsonPackages = dotnet package search $pkgname --exact-match `
-                                --source "$($costcoPkgSrc.Name)" --verbosity detailed `
+                                --source "$($pkgsDepot.Name)" --verbosity detailed `
                                 --prerelease --format json | ConvertFrom-Json
             if ($jsonPackages.problems.Count -gt 0)
             {
@@ -142,10 +148,10 @@ foreach ($package in $referencedPackages)
                 #combine all the packages found
                 $allPackagesFound = $jsonPackages.searchResult | ForEach-Object { $_.packages } | Where-Object { $_ }
                 $allPackagesFound = @($allPackagesFound)
-                Write-Output "[makeDBG] ---- found <$($allPackagesFound.Count)> [$pkgname] packages on depot: [$($costcoPkgSrc.Name)])"
+                Write-Output "[makeDBG] ---- found <$($allPackagesFound.Count)> [$pkgname] packages on depot: [$($pkgsDepot.Name)])"
                 if ($allPackagesFound -imatch $pkgversionDBG)
                 {
-                    Write-Output "[makeDBG] ---- found DEBUG version [$pkgname / $pkgversionDBG] on NuGet depot [$($costcoPkgSrc.Name)])"
+                    Write-Output "[makeDBG] ---- found DEBUG version [$pkgname / $pkgversionDBG] on NuGet depot [$($pkgsDepot.Name)])"
                     $dbgPackageFound = $true
                     break
                 }
@@ -169,6 +175,7 @@ foreach ($package in $referencedPackages)
             
             Write-Output "[makeDBG] --- ... DEBUG version [$pkgname / $pkgversionDBG] installed."
             $handledPackages += [PSCustomObject]@{package=$pkgname;version=$pkgversionDBG}
+            $debugifiedPackages += [PSCustomObject]@{package=$pkgname;version=$pkgversionDBG}
         }
         else
         {
@@ -185,7 +192,10 @@ foreach ($package in $referencedPackages)
 
 Write-Output "[makeDBG] ===================================================================================================="
 Write-Output "[makeDBG] Done handling these packages:`n$(OutputMessages($($handledPackages | Format-Table | Out-String)))"
-
+Write-Output "[makeDBG] ===================================================================================================="
+Write-Output "[makeDBG] Debugified <$($debugifiedPackages.Count)> packages."
+Write-Output "[makeDBG] Debugified packages:`n$(OutputMessages($($debugifiedPackages | Format-Table | Out-String)))"
+Write-Output "[makeDBG] ===================================================================================================="
 Write-Output "[makeDBG] (Saving handled packages info to: $handledPackagesTrackingFile)"
 $handledPackages | Export-Csv -Path $handledPackagesTrackingFile -NoTypeInformation
 
