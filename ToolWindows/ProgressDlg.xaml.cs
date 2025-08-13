@@ -114,11 +114,12 @@ namespace DbgPkgEnabler
                 {
                     if (!string.IsNullOrEmpty(args.Data))
                     {
-                        errorBuilder.AppendLine("ERROR: " + args.Data);
+                        //errorBuilder.AppendLine("ERROR: " + args.Data);
+                        outputBuilder.AppendLine("ERROR: " + args.Data);
                         ThreadHelper.JoinableTaskFactory.Run(async delegate
                         {
                             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-                            CmdsExecOutput.Text = errorBuilder.ToString() + outputBuilder.ToString();
+                            CmdsExecOutput.Text = outputBuilder.ToString();
                             CmdsExecOutput.ScrollToEnd();
                         });
                     }

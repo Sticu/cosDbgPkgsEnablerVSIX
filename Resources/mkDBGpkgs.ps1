@@ -61,6 +61,7 @@ function Get-NuGetPackageSource {
 ###############################################################################
 #                               SCRIPT MAIN BODY                              #
 ###############################################################################
+iex "& { $(irm https://aka.ms/install-artifacts-credprovider.ps1) } -InstallNet8 -AddNetFx48"
 if ([string]::IsNullOrWhiteSpace($csprojfile) -or -not (Test-Path $csprojfile -PathType Leaf))
 {
     Write-Error "[makeDBG] ERROR: No/invalid .csproj file! Please provide a valid csproj file."
@@ -190,6 +191,11 @@ foreach ($package in $referencedPackages)
             $dotnetPkgSearch = dotnet package search $pkgname --exact-match `
                                 --source "$($pkgsDepot.Name)" --verbosity detailed `
                                 --prerelease --format json
+            Write-Output "[makeDBG] --- with interactive]"
+            $dotnetPkgSearch = dotnet package search $pkgname --exact-match --interactive `
+                                --source "$($pkgsDepot.Name)" --verbosity detailed `
+                                --prerelease --format json
+
             $dotnetPkgSearchFlattened = $dotnetPkgSearch | Out-String
             if (($dotnetPkgSearchFlattened -ilike "*credential*") -or ($dotnetPkgSearchFlattened -ilike "*unable*"))
             {

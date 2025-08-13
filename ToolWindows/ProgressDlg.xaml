@@ -37,6 +37,6 @@
         <Button x:Name="CloseX" Grid.Row="3" Content="CloseX" HorizontalAlignment="Right" VerticalAlignment="Center" Click="CloseButton_Click" Width="83"/>
         <Button x:Name="DebugifyBtn" Grid.Row="3" Content="DEBUG-ify" HorizontalAlignment="Left" VerticalAlignment="Center"  Width="84" Click="DebugifyButton_Click"/>
         <ProgressBar x:Name="ProgressOperationRunning" HorizontalAlignment="Center" Height="12" Grid.Row="3" VerticalAlignment="Center" Width="100"/>
-        <CheckBox x:Name="ChkboxForceCheckAllPackages" Content="Force (re)check all packages" HorizontalAlignment="Left" Margin="107,0,0,0" Grid.Row="3" VerticalAlignment="Center" Width="180" Cursor="Hand"/>
+        <CheckBox x:Name="ChkboxForceCheckAllPackages" Content="Force (re)check all packages" HorizontalAlignment="Left" Margin="107,0,0,0" Grid.Row="3" VerticalAlignment="Center" Width="180" Cursor="Hand" IsChecked="True"/>
     </Grid>
 </platform:DialogWindow>
