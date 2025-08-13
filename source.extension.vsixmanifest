@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
     <Metadata>
-        <Identity Id="DbgPkgsEnabler.e2c91054-5cb7-4668-b161-02fc5bfb59a4" Version="0.0.20" Language="en-US" Publisher="Catalin Siicu (csiicu)" />
+        <Identity Id="DbgPkgsEnabler.e2c91054-5cb7-4668-b161-02fc5bfb59a4" Version="0.0.21" Language="en-US" Publisher="Catalin Siicu (csiicu)" />
         <DisplayName>DbgPkgsEnabler</DisplayName>
-        <Description xml:space="preserve">Attempt to replace NuGet packages in the .csproj with -DBG versions (if these exist).
+        <Description xml:space="preserve">Attempts to replace NuGet packages in the .csproj with their -DBG versions (if these exist).
 ---at this moment, Costo repositories only---</Description>
         <Icon>Resources\Icon.png</Icon>
         <PreviewImage>Resources\Icon.png</PreviewImage>

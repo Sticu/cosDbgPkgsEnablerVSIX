@@ -169,7 +169,8 @@ foreach ($package in $referencedPackages)
     Write-Output "[makeDBG] - Handling referenced package: [$pkgname / $pkgversion]"
     if ($packageAlreadyHandled -and -not ($forceCheckAll))
     {
-        Write-Output "[makeDBG] --- [$pkgname / $pkgversion] ALREADY handled and ONLY newer packages are targeted. Skip."
+        Write-Output "[makeDBG] --- [$pkgname / $pkgversion] ALREADY handled and ONLY newer packages are targeted."
+        Write-Output "[makeDBG] ------ SKIP."
         $handledPackages += [PSCustomObject]@{package=$pkgname;version=$pkgversion}
         continue
     }
@@ -183,8 +184,8 @@ foreach ($package in $referencedPackages)
         $dbgPackageFound = $false
         foreach ($pkgsDepot in $availablePackagesDepots)
         {
-            Write-Output "[makeDBG] --- Looking for pkgs on the NuGet depot named: [$($pkgsDepot.Name)]"
-            $jsonPackages = dotnet package search $pkgname --exact-match `
+            Write-Output "[makeDBG] --- Looking up for pkgs on the NuGet depot named: [$($pkgsDepot.Name)]"
+            $jsonPackages = dotnet package search --interactive $pkgname --exact-match `
                                 --source "$($pkgsDepot.Name)" --verbosity detailed `
                                 --prerelease --format json | ConvertFrom-Json
             if ($jsonPackages.problems.Count -gt 0)
@@ -242,8 +243,11 @@ foreach ($package in $referencedPackages)
 Write-Output "[makeDBG] ===================================================================================================="
 Write-Output "[makeDBG] Done handling these packages:`n$(OutputMessages($($handledPackages | Format-Table | Out-String)))"
 Write-Output "[makeDBG] ===================================================================================================="
-Write-Output "[makeDBG] Debugified <$($debugifiedPackages.Count)> packages."
-Write-Output "[makeDBG] Debugified packages:`n$(OutputMessages($($debugifiedPackages | Format-Table | Out-String)))"
+Write-Output "[makeDBG] ***** DEBUGified <$($debugifiedPackages.Count)> packages *****"
+if ($debugifiedPackages.Count -gt 0)
+{
+    Write-Output "[makeDBG] ***** Packages DEBUGified:`n$(OutputMessages($($debugifiedPackages | Format-Table | Out-String)))"
+}
 Write-Output "[makeDBG] ===================================================================================================="
 Write-Output "[makeDBG] (Saving handled packages info to: $handledPackagesTrackingFile)"
 $handledPackages | Export-Csv -Path $handledPackagesTrackingFile -NoTypeInformation
