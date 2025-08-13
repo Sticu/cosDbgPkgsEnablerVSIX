@@ -29,6 +29,7 @@ namespace DbgPkgEnabler
 
             // Start the long-running action when the dialog is loaded
             //await RunLongRunningActionAsync();
+            IsCloseButtonEnabled = true;
         }
 
         private async Task RunLongRunningActionAsync()
@@ -75,6 +76,7 @@ namespace DbgPkgEnabler
             // Clear previous output
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
             CmdsExecOutput.Text = "Starting execution ...\r\n";
+            IsCloseButtonEnabled = false;
 
             string ps1arguments = $"\"{_scriptPath}\" -csprojfile \"{_csprojName}\"" + (bForceCheckAll ? " -forceCheckAll" : string.Empty);
 
@@ -138,6 +140,7 @@ namespace DbgPkgEnabler
 
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
             this.DebugifyBtn.IsEnabled = true;
+            IsCloseButtonEnabled = true;
             this.ProgressOperationRunning.IsIndeterminate = false;
             this.ProgressOperationRunning.Visibility = Visibility.Hidden;
             this.OperationRunningIndicator.IsIndeterminate = false;
