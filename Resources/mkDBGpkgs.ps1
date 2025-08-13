@@ -185,9 +185,18 @@ foreach ($package in $referencedPackages)
         foreach ($pkgsDepot in $availablePackagesDepots)
         {
             Write-Output "[makeDBG] --- Looking up for pkgs on the NuGet depot named: [$($pkgsDepot.Name)]"
-            $jsonPackages = dotnet package search --interactive $pkgname --exact-match `
+            #if the user is not authenticated to access the depot(s), bail out
+            #note: do NOT use '-interactive' option for dotnet package search, as it would hang the script if not authenticated
+            $dotnetPkgSearch = dotnet package search $pkgname --exact-match `
                                 --source "$($pkgsDepot.Name)" --verbosity detailed `
-                                --prerelease --format json | ConvertFrom-Json
+                                --prerelease --format json
+            if (($dotnetPkgSearch | Out-String) -like "*credential*")
+            {
+                Write-Output "[makeDBG] ***** CREDENTIALS ERROR while accessing NuGet depots !"
+                Write-Output "[makeDBG] ***** Please authenticate accordingly in Visual Studio (sign in) OR disable the depot(s)!"
+                exit 5
+            }
+            $jsonPackages = $dotnetPkgSearch | ConvertFrom-Json
             if ($jsonPackages.problems.Count -gt 0)
             {
                 Write-Output "[makeDBG] ----- ERROR getting packages from this NuGet depot. (Check and/or enable the source URL in Visual Studio)"
