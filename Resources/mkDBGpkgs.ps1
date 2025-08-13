@@ -190,7 +190,8 @@ foreach ($package in $referencedPackages)
             $dotnetPkgSearch = dotnet package search $pkgname --exact-match `
                                 --source "$($pkgsDepot.Name)" --verbosity detailed `
                                 --prerelease --format json
-            if (($dotnetPkgSearch | Out-String) -like "*credential*")
+            $dotnetPkgSearchFlattened = $dotnetPkgSearch | Out-String
+            if (($dotnetPkgSearchFlattened -ilike "*credential*") -or ($dotnetPkgSearchFlattened -ilike "*unable*"))
             {
                 Write-Output "[makeDBG] ***** CREDENTIALS ERROR while accessing NuGet depots !"
                 Write-Output "[makeDBG] ***** Please authenticate accordingly in Visual Studio (sign in) OR disable the depot(s)!"
