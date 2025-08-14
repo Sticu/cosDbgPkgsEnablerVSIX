@@ -44,11 +44,13 @@ namespace DbgPkgEnabler
                 _ => eventType.ToString()
             };
 
+            //string timestamp = eventCache?.Timestamp.ToString("yyyy-MM-dd HH:mm:ss.fff") ?? DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
+            string timestamp = DateTime.Now.ToString("yy.MM.dd/HH:mm:ss.fff");
             // Format without including 'id' if it is zero
             if (id == 0)
-                WriteLine($"{source} ({eventTypeName}) {message}");
+                WriteLine($"{source} ({timestamp}) {message}");
             else
-                WriteLine($"{source} ({eventTypeName} : /{id}) {message}");
+                WriteLine($"{source} ({timestamp} : /{id}) {message}");
         }
 
         /// <summary>

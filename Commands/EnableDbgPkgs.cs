@@ -31,15 +31,17 @@ namespace DbgPkgsEnabler
             {
                 string projectName = activeProject.UniqueName;
                 Logger.LogInfo($"Found active project: {projectName}");
+                Logger.LogInfo($"Project path: {activeProject.FullName}");
 
                 string preBuildEvent = activeProject.Properties.Item("PreBuildEvent")?.Value?.ToString() ?? "Not set";
-                Logger.LogInfo($"Current PreBuildEvent: {preBuildEvent}");
+                Logger.LogInfo($"Current PreBuildEvent:");
+                Logger.LogInfo($"{preBuildEvent}");
 
-                activeProject.Properties.Item("PreBuildEvent").Value += $"\r\nREM (new command {DateTime.Now.ToShortTimeString()})";
-                Logger.LogInfo("Updated PreBuildEvent");
+                //activeProject.Properties.Item("PreBuildEvent").Value += $"\r\nREM (new command {DateTime.Now.ToShortTimeString()})";
+                //Logger.LogInfo("Updated PreBuildEvent");
 
-                activeProject.Save();
-                Logger.LogInfo("Project saved.");
+                //activeProject.Save();
+                //Logger.LogInfo("Project saved.");
 
                 preBuildEvent = activeProject.Properties.Item("PreBuildEvent")?.Value?.ToString() ?? "Not set";
 
@@ -53,6 +55,9 @@ namespace DbgPkgsEnabler
                 dialog.IsCloseButtonEnabled = false;
                 dialog.Title = "Debug NuGet Packages Enabler";
                 dialog.ShowModal();
+
+                Logger.LogInfo("Script execution log:");
+                Logger.LogInfo(dialog.ScriptExecutionLog);
 
                 //string dropFilePath = Path.Combine(Path.GetDirectoryName(activeProject.FullName), "xscript.kk");
                 //File.WriteAllText(dropFilePath, activeProject.FullName);

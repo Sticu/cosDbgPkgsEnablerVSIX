@@ -12,6 +12,8 @@ namespace DbgPkgEnabler
         private string _scriptPath;
         private string _csprojName;
 
+        public string ScriptExecutionLog {get; private set;}
+
         public ProgressDlg(string csprojName)
         {
             _csprojName = csprojName;
@@ -145,6 +147,7 @@ namespace DbgPkgEnabler
             this.ProgressOperationRunning.Visibility = Visibility.Hidden;
             this.OperationRunningIndicator.IsIndeterminate = false;
             this.OperationRunningIndicator.Visibility = Visibility.Hidden;
+            this.ScriptExecutionLog = CmdsExecOutput.Text;
         }
 
 

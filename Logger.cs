@@ -25,7 +25,7 @@ namespace DbgPkgEnabler
                 // Add a console listener for debugging purposes
                 _logger.Listeners.Add(new ConsoleTraceListener());
 
-                string logFileName = $"dbgPkgsEnabler-{DateTime.Now:yyyyMMdd.HHmmss}.log";
+                string logFileName = $"mk.dbgpkgs-{DateTime.Now:yyyyMMdd.HHmmss}.log";
                 string logFilePath = Path.Combine(Path.GetTempPath(), logFileName);
 
                 // Output to a file -> superseeded by the to-file listener below

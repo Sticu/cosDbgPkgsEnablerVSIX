@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
     <Metadata>
-        <Identity Id="DbgPkgsEnabler.e2c91054-5cb7-4668-b161-02fc5bfb59a4" Version="0.0.27" Language="en-US" Publisher="Catalin Siicu (csiicu)" />
+        <Identity Id="DbgPkgsEnabler.e2c91054-5cb7-4668-b161-02fc5bfb59a4" Version="0.0.28" Language="en-US" Publisher="Catalin Siicu (csiicu)" />
         <DisplayName>DbgPkgsEnabler</DisplayName>
         <Description xml:space="preserve">Attempts to replace NuGet packages in the .csproj with their -DBG versions (if these exist).
 ---at this moment, Costo repositories only---</Description>
         <Icon>Resources\Icon.png</Icon>
         <PreviewImage>Resources\Icon.png</PreviewImage>
-        <Tags>costco;dbg</Tags>
+        <Tags>costco;dbg;debug</Tags>
     </Metadata>
     <Installation>
         <InstallationTarget Id="Microsoft.VisualStudio.Community" Version="[17.0, 18.0)">
